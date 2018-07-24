@@ -64,3 +64,4 @@ NadekoBot.db
 NadekoBot.db-wal
 NadekoBot.db-shm
 credentials.json
+keys.json

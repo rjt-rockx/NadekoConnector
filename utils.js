@@ -1,6 +1,5 @@
-// var connector = require("./connector.js");
-var jwt = require("jsonwebtoken");
 var jsonbs = require("json-bigint")({ storeAsString: true });
+var authm = require("./authmanager.js");
 var os = require("os");
 var fs = require("fs");
 var path = require("path");
@@ -9,27 +8,29 @@ var log = require("fancy-log");
 var readJson = function (pathToFile) {
 	if (!fs.existsSync(pathToFile))
 		throw new Error("File not found.");
-	let data = fs.readFileSync(pathToFile).toString();
+	var data = fs.readFileSync(pathToFile).toString();
 	var info = jsonbs.parse(data);
 	return info;
 };
 
-var handleEndpoint = async function (token, endpoint) {
-	let connector = require("./connector.js");
-	let config = readJson("./config.json");
-	let obj = parseToken(config, token);
-	if (!obj.success)
-		return failure(obj);
-	let data = checkProperties(obj, endpoint);
-	if (!data.success)
-		return failure(data);
-	let info = await connector[endpoint](data);
-	if (!info.success)
-		return failure(info);
+var handleEndpoint = async function (query, endpoint) {
+	try {
+		var connector = require("./connector.js");
+	if (Object.keys(query) === null) throw new Error("Empty query.");
+	if (!Object.keys(query).includes("authKey")) throw new Error("No Authentication key specified.");
+	var authCheck = await authm.checkAuthKey(query.authKey, endpoint);
+	if (!authCheck.success) return failure(authCheck);
+	var data = checkProperties(query, endpoint);
+	if (!data.success) return failure(data);
+	var info = await connector[endpoint](data);
+	if (!info.success) return failure(info);
 	return success(info);
+	}
+	catch(error)
+	{
+		return failure({ error: error.message });
+	}
 };
-
-var stringify = data => jsonbs.stringify(data, null, 0);
 
 var calcLevel = (xp) => {
 	try {
@@ -60,7 +61,7 @@ var success = function (data, stringify) {
 		data = {};
 	data["success"] = true;
 	if (stringify)
-		return jsonbs.stringify(data, null, 4);
+		return jsonbs.stringify(data);
 	return data;
 };
 
@@ -71,20 +72,65 @@ var failure = function (data, stringify) {
 		data["error"] = "An error occured.";
 	data["success"] = false;
 	if (stringify)
-		return jsonbs.stringify(data, null, 4);
+		return jsonbs.stringify(data);
 	return data;
 };
 
-// for future usage
-var updateConfig = function (config, property, value) {
-	let newConfig = readJson("../config.json");
-	newConfig[property] = value;
+var getConfig = function () {
+	return readJson("./config.json");
+};
+
+var getCredentials = function () {
+	var config = getConfig();
+	return readJson(config.bot.credentials);
+};
+
+var getPackage = function () {
+	return readJson("./package.json");
+};
+
+var updateConfig = function (newConfig, property, value) {
+	if (!newConfig) {
+		newConfig = readJson("./config.json");
+	}
+	if (!property && !value) {
+		newConfig[property] = value;
+	}
 	try {
-		fs.writeFileSync(path.resolve("../config.json"), jsonbs.stringify(newConfig, null, 4), "utf8");
+		fs.writeFileSync(path.resolve("./config.json"), jsonbs.stringify(newConfig, null, 4), "utf8");
 		return success();
 	} catch (error) {
 		return failure({ error: error.message });
 	}
+};
+
+var addAuthKey = function (key) {
+	try {
+		var existingAuthKeys = [];
+		if (fs.existsSync("./keys.json"))
+			existingAuthKeys = readJson("./keys.json");
+		if (!existingAuthKeys.includes(key))
+			existingAuthKeys.push(key);
+		fs.writeFileSync(path.resolve("./keys.json"), jsonbs.stringify(existingAuthKeys, null, 4), "utf8");
+		return success();
+	} catch (error) {
+		return failure({ error: error.message });
+	}
+};
+
+var deleteAuthKeys = function () {
+	try {
+		var existingAuthKeys = [];
+		fs.writeFileSync(path.resolve("./keys.json"), jsonbs.stringify(existingAuthKeys, null, 4), "utf8");
+		return success();
+	} catch (error) {
+		return failure({ error: error.message });
+	}
+};
+
+var getAuthKeys = function () {
+	var authKeys = readJson("./keys.json");
+	return authKeys;
 };
 
 var getIpAddress = function () {
@@ -107,7 +153,8 @@ var getIpAddress = function () {
 	}
 };
 
-var getActiveEndpoints = function (config) {
+var getActiveEndpoints = function () {
+	var config = getConfig();
 	try {
 		let activeEndpoints = [];
 		let endpoints = Object.keys(config.endpoints);
@@ -120,17 +167,6 @@ var getActiveEndpoints = function (config) {
 	catch (error) {
 		return failure({ error: error.message });
 	}
-};
-
-var parseToken = function (config, token) {
-	var obj;
-	try {
-		obj = jwt.verify(token, config.password);
-	}
-	catch (error) {
-		return failure({ error: error.message });
-	}
-	return success(obj);
 };
 
 var checkProperties = function (obj, endpoint) {
@@ -196,6 +232,8 @@ var getRequiredKeys = function (endpoint) {
 	}
 };
 
+var stringify = (data) => jsonbs.stringify(data);
+
 var logAsync = async function (data) {
 	log(await Promise.resolve(data));
 };
@@ -203,12 +241,17 @@ var logAsync = async function (data) {
 exports.logAsync = logAsync;
 exports.success = success;
 exports.failure = failure;
-exports.stringify = stringify;
+exports.addAuthKey = addAuthKey;
+exports.getAuthKeys = getAuthKeys;
+exports.deleteAuthKeys = deleteAuthKeys;
+exports.getConfig = getConfig;
+exports.updateConfig = updateConfig;
+exports.getCredentials = getCredentials;
+exports.getPackage = getPackage;
 exports.calcLevel = calcLevel;
 exports.readJson = readJson;
-exports.updateConfig = updateConfig; // for future usage
+exports.stringify = stringify;
 exports.getIpAddress = getIpAddress;
 exports.getActiveEndpoints = getActiveEndpoints;
-exports.parseToken = parseToken;
 exports.checkProperties = checkProperties;
 exports.handleEndpoint = handleEndpoint;

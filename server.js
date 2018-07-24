@@ -1,4 +1,5 @@
 var utils = require("./utils.js");
+var authmanager = require("./authmanager.js");
 var express = require("express");
 var app = express();
 var config = utils.readJson("./config.json");
@@ -11,31 +12,23 @@ app.enable("trust proxy");
 app.use(function (req, res, next) {
 	try {
 		res.append("content-type", "application/json; charset = utf-8");
-		var token = req.url.split("/")[2];
-		var parsedToken = utils.parseToken(config, token);
-		if (!parsedToken.success)
-			log(`${req.ip.split(":")[3]} ${req.method} ${req.url.split("/")[1]} ${token}`);
-		if (parsedToken.success) {
-			delete parsedToken["iat"];
-			delete parsedToken["success"];
-			log(`${req.ip.split(":")[3]} ${req.method} ${req.url.split("/")[1]} ${utils.stringify(parsedToken)}`);
-		}
+		log(`${req.ip.split(":")[3]} ${req.method} ${req.path}`);
 	} catch (error) {
 		log(`Error: ${error.message}`);
 	}
 	next();
 });
 
-var activeEndpoints = utils.getActiveEndpoints(config).activeEndpoints;
+var activeEndpoints = utils.getActiveEndpoints().activeEndpoints;
 
 activeEndpoints.forEach((endpoint) => {
 	if (config.endpoints[endpoint]) {
-		app.get(`/${endpoint.toLowerCase()}/:token`, async function (req, res) {
+		app.get(`/${endpoint.toLowerCase()}`, async function (req, res) {
 			try {
-				let result = await utils.handleEndpoint(req.params.token, endpoint);
+				var result = await utils.handleEndpoint(req.query, endpoint);
 				if (!result.success)
 					throw new Error(result.error);
-				res.end(utils.success(result, true));
+				res.json(utils.success(result));
 			}
 			catch (error) {
 				log(`Error: ${error.message}`);

@@ -1,24 +1,24 @@
 {
-    "password": "yourawesomepasswordhere",
-    "bot": {
-        "db": "/absolute/path/to/NadekoBot.db",
-        "credentials": "/absolute/path/to/credentials.json"
-    },
-    "port": 3000,
-    "endpoints": {
-        "getBotInfo": true,
-        "getTables": false,
-        "getFields": false,
-        "getBalance": true,
-        "setBalance": true,
-        "createTransaction": true,
-        "getTransactions": true,
-        "getGuildXp": true,
-        "setGuildXp": true,
-        "getGuildXpLeaderboard": true,
-        "getGuildXpRoleRewards": true,
-        "getGuildXpCurrencyRewards": true,
-        "getGlobalXp": true,
-        "getGlobalXpLeaderboard": true
-    }
+	"password": "yourawesomepasswordhere",
+	"bot": {
+		"db": "/absolute/path/to/NadekoBot.db",
+		"credentials": "/absolute/path/to/credentials.json"
+	},
+	"port": 3000,
+	"endpoints": {
+		"getBotInfo": true,
+		"getTables": false,
+		"getFields": false,
+		"getBalance": true,
+		"setBalance": true,
+		"createTransaction": true,
+		"getTransactions": true,
+		"getGuildXp": true,
+		"setGuildXp": true,
+		"getGuildXpLeaderboard": true,
+		"getGuildXpRoleRewards": true,
+		"getGuildXpCurrencyRewards": true,
+		"getGlobalXp": true,
+		"getGlobalXpLeaderboard": true
+	}
 }
