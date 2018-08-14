@@ -16,39 +16,38 @@ var readJson = function (pathToFile) {
 var handleEndpoint = async function (query, endpoint) {
 	try {
 		var connector = require("./connector.js");
-	if (Object.keys(query) === null) throw new Error("Empty query.");
-	if (!Object.keys(query).includes("authKey")) throw new Error("No Authentication key specified.");
-	var authCheck = await authm.checkAuthKey(query.authKey, endpoint);
-	if (!authCheck.success) return failure(authCheck);
-	var data = checkProperties(query, endpoint);
-	if (!data.success) return failure(data);
-	var info = await connector[endpoint](data);
-	if (!info.success) return failure(info);
-	return success(info);
+		if (Object.keys(query) === null) throw new Error("Empty query.");
+		if (!Object.keys(query).includes("authKey")) throw new Error("No Authentication key specified.");
+		var authCheck = await authm.checkAuthKey(query.authKey, endpoint);
+		if (!authCheck.success) return failure(authCheck);
+		var data = checkProperties(query, endpoint);
+		if (!data.success) return failure(data);
+		var info = await connector[endpoint](data);
+		if (!info.success) return failure(info);
+		return success(info);
 	}
-	catch(error)
-	{
+	catch (error) {
 		return failure({ error: error.message });
 	}
 };
 
 var calcLevel = (xp) => {
 	try {
-		let lvl = 0,
-			gap = 0;
-		for (var i in [...Array(1000).keys()]) {
-			gap = 36 + (9 * i);
-			if (xp >= gap) {
-				xp -= gap;
-				lvl++;
+		let level = 1,
+			required = 0;
+		while (true) {
+			required = 36 + (9 * (level - 1));
+			if (xp >= required) {
+				xp -= required;
+				level++;
 			}
-			if (xp < gap)
+			if (xp < required)
 				break;
 		}
 		return success({
-			level: lvl,
+			level: level - 1,
 			currentLevelXp: xp,
-			nextLevelXp: gap
+			nextLevelXp: required + 9
 		});
 	}
 	catch (error) {
