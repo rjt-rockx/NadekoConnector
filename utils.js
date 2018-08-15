@@ -46,8 +46,8 @@ var calcLevel = (xp) => {
 		}
 		return success({
 			level: level - 1,
-			currentLevelXp: xp,
-			nextLevelXp: required + 9
+			levelXp: xp,
+			requiredXp: required + 9
 		});
 	}
 	catch (error) {
