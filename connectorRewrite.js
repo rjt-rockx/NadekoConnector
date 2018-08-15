@@ -107,7 +107,7 @@ class Connector {
 	async getTables({ }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getTables"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let tables = await this.db.select("name").from("sqlite_master").where({
 			type: "table"
 		}).map(table => table.name);
@@ -125,7 +125,7 @@ class Connector {
 	async getFields({ table }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getFields"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let existingTables = this.getTables({}).tables;
 		if (!existingTables.includes(table))
 			throw new Error(`${table} is not present in the database. `);
@@ -144,7 +144,7 @@ class Connector {
 	async execSql({ command }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("execSql"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let result = await this.db.raw(command);
 		let rowsAffected = result.length;
 		if (!result)
@@ -168,7 +168,7 @@ class Connector {
 	async getBalance({ userId }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getBalance"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let info = await this.db.raw(`select cast(UserId as text) as 'userId', CurrencyAmount as 'balance' from DiscordUser where UserId = ${userId}`);
 		if (!info)
 			throw new Error("User not found.");
@@ -184,7 +184,7 @@ class Connector {
 	async setBalance({ userId, balance }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("setBalance"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let updatedRows = await this.db.from("DiscordUser").update({ CurrencyAmount: balance }).where({ UserId: userId });
 		if (updatedRows < 1)
 			throw new Error("User not found.");
@@ -205,7 +205,7 @@ class Connector {
 	async createTransaction({ userId, amount, reason }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("createTransaction"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let dateAdded = new Date().toISOString().replace(/[TZ]/g, " ");
 		let row = await this.db.from("CurrencyTransactions").insert({
 			UserId: userId,
@@ -230,7 +230,7 @@ class Connector {
 	async getTransactions({ userId, startPosition, items }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getTransactions"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let transactions = await this.db.raw(`select Id as 'transactionId', Amount as 'amount', Reason as 'reason', DateAdded as 'dateAdded' from CurrencyTransactions where UserId = ${userId} order by Id desc limit ${items} offset ${startPosition}`);
 		if (!transactions)
 			throw new Error("User not found.");
@@ -250,7 +250,7 @@ class Connector {
 	async getGuildRank({ userId, guildId }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getGuildRank"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let guildRankings = await this.db.raw(`select cast(UserId as text) as 'id' from UserXpStats where GuildId=${guildId} order by Xp+AwardedXp desc`).map(user => user.id);
 		if (!guildRankings)
 			throw new Error("Guild not found.");
@@ -269,7 +269,7 @@ class Connector {
 	async getGlobalRank({ userId }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getGlobalRank"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let globalRankings = await this.db.raw("select cast(UserId as text) as 'id' from UserXpStats group by UserId order by sum(Xp) desc").map(user => user.id);
 		let rank = await globalRankings.indexOf(userId);
 		if (rank < 0)
@@ -287,7 +287,7 @@ class Connector {
 	async getGuildXp({ userId, guildId }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("getGuildXp"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let xpInfo = await this.db.first("Xp", "AwardedXp").from("UserXpStats").where({
 			UserId: userId,
 			GuildId: guildId
@@ -319,7 +319,7 @@ class Connector {
 	async setGuildXp({ userId, guildId, xp, awardedXp }) {
 		this.checkInitialized();
 		if (this._disabledEndpoints.includes("setGuildXp"))
-			return;
+			throw new Error("Endpoint disabled.");
 		let updatedRows = await this.db.from("UserXpStats").update({ Xp: xp, AwardedXp: awardedXp }).where({ UserId: userId, GuildId: guildId });
 		if (updatedRows < 1)
 			throw new Error("User/guild not found.");
