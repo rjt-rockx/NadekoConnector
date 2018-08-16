@@ -277,13 +277,17 @@ class Connector {
 		let levelInfo = utils.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
 		if (!levelInfo)
 			throw new Error("Unable to calculate level.");
+		let rankInfo = await this.getGuildRank(userId, guildId);
+		if (!rankInfo)
+			throw new Error("Unable to get rank.");
 		return {
 			guildXp: xpInfo.Xp,
 			awardedXp: xpInfo.AwardedXp,
 			totalXp: xpInfo.Xp + xpInfo.AwardedXp,
 			level: levelInfo.level,
 			levelXp: levelInfo.levelXp,
-			requiredXp: levelInfo.requiredXp
+			requiredXp: levelInfo.requiredXp,
+			rank: rankInfo.rank
 		};
 	}
 
@@ -300,20 +304,10 @@ class Connector {
 		let updatedRows = await this.db.from("UserXpStats").update({ Xp: xp, AwardedXp: awardedXp }).where({ UserId: userId, GuildId: guildId });
 		if (updatedRows < 1)
 			throw new Error("User/guild not found.");
-		let xpInfo = await this.db.first("Xp", "AwardedXp").from("UserXpStats").where({ UserId: userId, GuildId: guildId });
+		let xpInfo = await this.getGuildXp(userId, guildId);
 		if (!xpInfo)
-			throw new Error("User/guild not found.");
-		let levelInfo = utils.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
-		if (!levelInfo)
-			throw new Error("Unable to calculate level.");
-		return {
-			guildXp: xpInfo.Xp,
-			awardedXp: xpInfo.AwardedXp,
-			totalXp: xpInfo.Xp + xpInfo.AwardedXp,
-			level: levelInfo.level,
-			levelXp: levelInfo.levelXp,
-			requiredXp: levelInfo.requiredXp
-		};
+			throw new Error("Could not get XP info.")
+		return xpInfo;
 	}
 }
 
