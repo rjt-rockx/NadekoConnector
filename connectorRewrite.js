@@ -33,6 +33,7 @@ class Connector {
 			"setGuildXp",
 			"getGuildXpLeaderboard",
 			"getGuildXpRoleRewards",
+			"getGuildXpCurrencyRewards",
 			"getGlobalRank",
 			"getGlobalXp",
 			"getGlobalXpLeaderboard"];
@@ -395,6 +396,22 @@ class Connector {
 		let rewards = await this.db.raw(`select a.DateAdded as 'dateAdded', a.Level as 'level', cast (a.RoleId as text) as 'roleId' from XpRoleReward a, XpSettings b, GuildConfigs c where a.XpSettingsId = b.Id AND b.GuildConfigId = c.Id AND c.GuildId = ${guildId} order by a.Level asc`);
 		if (!rewards)
 			throw new Error("Unable to fetch role rewards.");
+		return {
+			rewards: rewards
+		};
+	}
+
+	/**
+	 * Get XP currency rewards of a Discord guild.
+	 * @param {String} guildId ID of the guild to get XP currency rewards of.
+	 * @returns {Object} Currency rewards.
+	 */
+	async getGuildXpCurrencyRewards(guildId, startPosition, items) {
+		await this.checkEndpoint("getGuildXpCurrencyRewards");
+		await this.checkIfGuildExists(guildId);
+		let rewards = await this.db.raw(`select a.DateAdded as 'dateAdded', a.Level as 'level', a.Amount as 'amount' from XpCurrencyReward a, XpSettings b, GuildConfigs c where a.XpSettingsId = b.Id AND b.GuildConfigId = c.Id AND c.GuildId = ${guildId} order by a.Level asc limit ${items} offset ${startPosition}`);
+		if (!rewards)
+			throw new Error("Unable to fetch currency rewards.");
 		return {
 			rewards: rewards
 		};
