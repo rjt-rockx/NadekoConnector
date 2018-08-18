@@ -1,6 +1,5 @@
 const utils = require("./utils.js");
 const knex = require("knex");
-var config = utils.readJson("./config.json");
 
 class Connector {
 
@@ -72,6 +71,32 @@ class Connector {
 	 */
 	get initialized() {
 		return this._init;
+	}
+
+	/**
+	 * Calculate levels gained from a given amount of XP.
+	 * @param {Number} xp XP to calculate level for.
+	 * @returns {Object} Level information.
+	 */
+	async calcLevel(xp) {
+		if (typeof xp !== "number")
+			throw new Error("XP must be a valid numerical value.");
+		let level = 1,
+			required = 0;
+		while (true) {
+			required = 36 + (9 * (level - 1));
+			if (xp >= required) {
+				xp -= required;
+				level++;
+			}
+			if (xp < required)
+				break;
+		}
+		return {
+			level: level - 1,
+			levelXp: xp,
+			requiredXp: required + 9
+		};
 	}
 
 	/**
@@ -321,7 +346,7 @@ class Connector {
 		});
 		if (!xpInfo)
 			throw new Error("Unable to find the user/guild.");
-		let levelInfo = utils.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
+		let levelInfo = await this.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
 		if (!levelInfo)
 			throw new Error("Unable to calculate level.");
 		let rankInfo = await this.getGuildRank(userId, guildId);
@@ -371,7 +396,7 @@ class Connector {
 		await this.checkIfGuildExists(guildId);
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', Xp as 'xp', AwardedXp as 'awardedXp' from UserXpStats where GuildId=${guildId} order by (xp + awardedXp) desc limit ${items} offset ${startPosition}`);
 		leaderboard = await Promise.all(leaderboard.map(async (user, rank) => {
-			let levelInfo = await utils.calcLevel(user.xp + user.awardedXp);
+			let levelInfo = await this.calcLevel(user.xp + user.awardedXp);
 			user.level = levelInfo.level;
 			user.levelXp = levelInfo.levelXp;
 			user.requiredXp = levelInfo.requiredXp;
@@ -443,7 +468,7 @@ class Connector {
 		let { globalXp } = await this.db.from("UserXpStats").where({ UserId: userId }).sum({ globalXp: "Xp" })[0];
 		if (!globalXp)
 			throw new Error("User not found.");
-		let levelInfo = utils.calcLevel(globalXp);
+		let levelInfo = await this.calcLevel(globalXp);
 		if (!levelInfo)
 			throw new Error("Unable to calculate level.");
 		let rankInfo = await this.getGlobalRank(userId);
@@ -468,7 +493,7 @@ class Connector {
 		await this.checkEndpoint("getGlobalXpLeaderboard");
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', sum(Xp) as 'xp' from UserXpStats group by userId order by sum(Xp) desc limit ${items} offset ${startPosition}`);
 		leaderboard = await Promise.all(leaderboard.map(async (user, rank) => {
-			let levelInfo = await utils.calcLevel(user.xp);
+			let levelInfo = await this.calcLevel(user.xp);
 			user.level = levelInfo.level;
 			user.levelXp = levelInfo.levelXp;
 			user.requiredXp = levelInfo.requiredXp;
