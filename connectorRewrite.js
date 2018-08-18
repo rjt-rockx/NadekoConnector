@@ -176,6 +176,8 @@ class Connector {
 	 * @param {String} userId Guild ID.
 	 */
 	async checkIfGuildExists(guildId) {
+		if (typeof guildId !== "string")
+			throw new Error("IDs must be provided as strings to avoid loss of precision.");
 		let guilds = await this.db.raw("select cast(GuildId as text) as 'guildId' from GuildConfigs").map(element => element.guildId);
 		if (!guilds.includes(guildId))
 			throw new Error("Guild not found.");
@@ -186,6 +188,8 @@ class Connector {
 	 * @param {String} userId User ID.
 	 */
 	async checkIfUserExists(userId) {
+		if (typeof userId !== "string")
+			throw new Error("IDs must be provided as strings to avoid loss of precision.");
 		let users = await this.db.raw("select cast(UserId as text) as 'userId' from GuildConfigs;").map(element => element.userId);
 		if (!users.includes(userId))
 			throw new Error("User not found.");
