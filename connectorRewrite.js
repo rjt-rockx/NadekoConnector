@@ -189,7 +189,7 @@ class Connector {
 
 	/**
 	 * Check if a Discord guild exists in the database.
-	 * @param {String} userId Guild ID.
+	 * @param {String} guildId ID of the Discord guild.
 	 */
 	async checkIfGuildExists(guildId) {
 		if (typeof guildId !== "string")
@@ -201,7 +201,7 @@ class Connector {
 
 	/**
 	 * Check if a Discord user exists in the database.
-	 * @param {String} userId User ID.
+	 * @param {String} userId ID of the Discord user.
 	 */
 	async checkIfUserExists(userId) {
 		if (typeof userId !== "string")
@@ -213,7 +213,7 @@ class Connector {
 
 	/**
 	 * Get the balance of a Discord user.
-	 * @param {String} userId User ID to get the balance of.
+	 * @param {String} userId ID of the Discord user.
 	 * @returns {Object} Balance info about the specified user.
 	 */
 	async getBalance(userId) {
@@ -227,7 +227,7 @@ class Connector {
 
 	/**
 	 * Get the balance of a Discord user.
-	 * @param {String} userId User ID to get the balance of.
+	 * @param {String} userId ID of the Discord user.
 	 * @returns {Object} Balance info about the specified user.
 	 */
 	async setBalance(userId, balance) {
@@ -244,7 +244,7 @@ class Connector {
 
 	/**
 	 * Create a transaction for a Discord user.
-	 * @param {String} userId User ID to create a transaction for.
+	 * @param {String} userId ID of the Discord user.
 	 * @param {Number} amount Amount added to or subtracted from the user.
 	 * @param {String} reason Reason for the transaction.
 	 * @returns {Object} Transaction info.
@@ -268,7 +268,7 @@ class Connector {
 
 	/**
 	 * Get transactions of a Discord user.
-	 * @param {String} userId ID of the user to get transactions of.
+	 * @param {String} userId ID of the Discord user.
 	 * @param {Number} startPosition Start position/offset of transactions.
 	 * @param {Number} items Items per page.
 	 * @returns {Object} Transactions.
@@ -287,8 +287,8 @@ class Connector {
 
 	/**
 	 * Get ranking of a Discord user in a specific guild.
-	 * @param {String} userId ID of the user to get guild ranking of.
-	 * @param {String} guildId ID of the guild to get rankings of.
+	 * @param {String} userId ID of the Discord user.
+	 * @param {String} guildId ID of the Discord guild.
 	 * @returns {Object} Rank info.
 	 */
 	async getGuildRank(userId, guildId) {
@@ -307,7 +307,7 @@ class Connector {
 	/**
 	 * Get the guild XP of a Discord user.
 	 * @param {String} userId ID of the Discord user.
-	 * @param {String} guildId ID of the Discord server.
+	 * @param {String} guildId ID of the Discord guild.
 	 * @returns {Object} Information about the user's XP.
 	 */
 	async getGuildXp(userId, guildId) {
@@ -360,7 +360,7 @@ class Connector {
 
 	/**
 	 * Get XP leaderboard of a Discord guild.
-	 * @param {String} guildId ID of the user to get XP leaderboard of.
+	 * @param {String} guildId ID of the guild to get XP leaderboard of.
 	 * @param {Number} startPosition Start position/offset of the page.
 	 * @param {Number} items Items per page.
 	 * @returns {Object} Leaderboard page.
