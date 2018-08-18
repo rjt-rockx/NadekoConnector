@@ -19,7 +19,23 @@ class Connector {
 			useNullAsDefault: true
 		});
 		this.credentials = utils.readJson(credentialsPath);
-		this._endpoints = ["getBotInfo", "getTables", "getFields", "execSql", "getBalance", "setBalance", "createTransaction", "getTransactions", "getGuildRank", "getGlobalRank", "getGuildXp", "setGuildXp"];
+		this._endpoints = [
+			"getBotInfo",
+			"getTables",
+			"getFields",
+			"execSql",
+			"getBalance",
+			"setBalance",
+			"createTransaction",
+			"getTransactions",
+			"getGuildRank",
+			"getGuildXp",
+			"setGuildXp",
+			"getGuildXpLeaderboard",
+			"getGuildXpRoleRewards",
+			"getGlobalRank",
+			"getGlobalXp",
+			"getGlobalXpLeaderboard"];
 		if (!disabledEndpoints)
 			disabledEndpoints = [];
 		this._disabledEndpoints = disabledEndpoints;
