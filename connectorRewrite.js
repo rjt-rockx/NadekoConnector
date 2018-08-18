@@ -353,6 +353,14 @@ class Connector {
 		await this.checkEndpoint("getGuildXpLeaderboard");
 		await this.checkIfGuildExists(guildId);
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', Xp as 'xp', AwardedXp as 'awardedXp' from UserXpStats where GuildId=${guildId} order by (xp + awardedXp) desc limit ${items} offset ${startPosition}`);
+		leaderboard = await Promise.all(leaderboard.map(async (user, rank) => {
+			let levelInfo = await utils.calcLevel(user.xp + user.awardedXp);
+			user.level = levelInfo.level;
+			user.levelXp = levelInfo.levelXp;
+			user.requiredXp = levelInfo.requiredXp;
+			user.rank = startPosition + rank + 1;
+			return user;
+		}));
 		if (!leaderboard)
 			throw new Error("Unable to fetch guild XP leaderboard.");
 		return {
@@ -428,6 +436,14 @@ class Connector {
 	async getGlobalXpLeaderboard(startPosition, items) {
 		await this.checkEndpoint("getGlobalXpLeaderboard");
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', sum(Xp) as 'xp' from UserXpStats group by userId order by sum(Xp) desc limit ${items} offset ${startPosition}`);
+		leaderboard = await Promise.all(leaderboard.map(async (user, rank) => {
+			let levelInfo = await utils.calcLevel(user.xp);
+			user.level = levelInfo.level;
+			user.levelXp = levelInfo.levelXp;
+			user.requiredXp = levelInfo.requiredXp;
+			user.rank = startPosition + rank + 1;
+			return user;
+		}));
 		if (!leaderboard)
 			throw new Error("Unable to fetch global XP leaderboard.");
 		return {
