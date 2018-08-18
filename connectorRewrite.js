@@ -386,15 +386,13 @@ class Connector {
 
 	/**
 	 * Get XP role rewards of a Discord guild.
-	 * @param {String} guildId ID of the user to get XP role rewards of.
-	 * @param {Number} startPosition Start position/offset of the page.
-	 * @param {Number} items Items per page.
-	 * @returns {Object} Leaderboard page.
+	 * @param {String} guildId ID of the guild to get XP role rewards of.
+	 * @returns {Object} Role rewards.
 	 */
-	async getGuildXpRoleRewards(guildId, startPosition, items) {
+	async getGuildXpRoleRewards(guildId) {
 		await this.checkEndpoint("getGuildXpRoleRewards");
 		await this.checkIfGuildExists(guildId);
-		let rewards = await this.db.raw(`select a.DateAdded as 'dateAdded', a.Level as 'level', cast (a.RoleId as text) as 'roleId' from XpRoleReward a, XpSettings b, GuildConfigs c where a.XpSettingsId = b.Id AND b.GuildConfigId = c.Id AND c.GuildId = ${guildId} order by a.Level asc limit ${items} offset ${startPosition}`);
+		let rewards = await this.db.raw(`select a.DateAdded as 'dateAdded', a.Level as 'level', cast (a.RoleId as text) as 'roleId' from XpRoleReward a, XpSettings b, GuildConfigs c where a.XpSettingsId = b.Id AND b.GuildConfigId = c.Id AND c.GuildId = ${guildId} order by a.Level asc`);
 		if (!rewards)
 			throw new Error("Unable to fetch role rewards.");
 		return {
