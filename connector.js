@@ -1,6 +1,7 @@
-const utils = require("./utils.js");
-const knex = require("knex");
-var config = utils.readJson("./config.json");
+var jsonbs = require("json-bigint")({ storeAsString: true });
+var knex = require("knex");
+var fs = require("fs");
+var path = require("path");
 
 class Connector {
 
@@ -18,14 +19,15 @@ class Connector {
 			},
 			useNullAsDefault: true
 		});
-		this.credentials = utils.readJson(credentialsPath);
+		this.credentials = jsonbs.parse(fs.readFileSync(path.resolve(credentialsPath)).toString());
 		this._endpoints = [
 			"getBotInfo",
 			"getTables",
 			"getFields",
 			"execSql",
-			"getBalance",
-			"setBalance",
+			"getCurrency",
+			"setCurrency",
+			"addCurrency",
 			"createTransaction",
 			"getTransactions",
 			"getGuildRank",
@@ -36,7 +38,8 @@ class Connector {
 			"getGuildXpCurrencyRewards",
 			"getGlobalRank",
 			"getGlobalXp",
-			"getGlobalXpLeaderboard"];
+			"getGlobalXpLeaderboard",
+			"getClubs"];
 		if (!disabledEndpoints)
 			disabledEndpoints = [];
 		this._disabledEndpoints = disabledEndpoints;
@@ -233,40 +236,76 @@ class Connector {
 	async checkIfUserExists(userId) {
 		if (typeof userId !== "string")
 			throw new Error("IDs must be provided as strings to avoid loss of precision.");
-		let users = await this.db.raw("select cast(UserId as text) as 'userId' from GuildConfigs;").map(element => element.userId);
+		let users = await this.db.raw("select cast(UserId as text) as 'userId' from DiscordUser").map(element => element.userId);
 		if (!users.includes(userId))
 			throw new Error("User not found.");
 	}
 
 	/**
-	 * Get the balance of a Discord user.
+	 * Get the currency of a Discord user.
 	 * @param {String} userId ID of the Discord user.
 	 * @returns {Object} Balance info about the specified user.
 	 */
-	async getBalance(userId) {
-		await this.checkEndpoint("getBalance");
+	async getCurrency(userId) {
+		await this.checkEndpoint("getCurrency");
 		await this.checkIfUserExists(userId);
-		let info = await this.db.raw(`select cast(UserId as text) as 'userId', CurrencyAmount as 'balance' from DiscordUser where UserId = ${userId}`);
+		let info = await this.db.raw(`select cast(UserId as text) as 'userId', CurrencyAmount as 'currency' from DiscordUser where UserId = ${userId}`);
 		if (!info)
-			throw new Error("Unable to fetch balance.");
+			throw new Error("Unable to fetch currency.");
 		return info[0];
 	}
 
 	/**
-	 * Get the balance of a Discord user.
+	 * Set the currency of a Discord user. NOT RECOMMENDED! Use addCurrency instead for normal transactions.
 	 * @param {String} userId ID of the Discord user.
+	 * @param {Number} currency Currency amount to be set.
 	 * @returns {Object} Balance info about the specified user.
 	 */
-	async setBalance(userId, balance) {
-		await this.checkEndpoint("setBalance");
+	async setCurrency(userId, currency) {
+		await this.checkEndpoint("setCurrency");
 		await this.checkIfUserExists(userId);
-		let updatedRows = await this.db.from("DiscordUser").update({ CurrencyAmount: balance }).where({ UserId: userId });
+		let updatedRows = await this.db.from("DiscordUser").update({ CurrencyAmount: currency }).where({ UserId: userId });
 		if (updatedRows < 1)
-			throw new Error("Unable to update balance.");
+			throw new Error("Unable to update currency.");
 		return {
 			userId: userId,
-			balance: balance
+			currency: currency
 		};
+	}
+
+	/**
+	 * Update the bot's currency and transactions.
+	 * @param {String} reason Reason for the transaction.
+	 * @param {Number} currency Currency amount to be set.
+	 */
+	async updateBotCurrency(currency, reason) {
+		let { bot } = await this.getBotInfo();
+		if (!bot)
+			throw new Error("Unable to fetch bot information.");
+		await this.db.raw(`update DiscordUser set CurrencyAmount =  CurrencyAmount ${currency > -1 ? "-" : "+"} ${Math.abs(currency)} where UserId = ${bot.id}`);
+		let botTransactionCreated = await this.createTransaction(bot.id, -1 * currency, reason);
+		if (!botTransactionCreated)
+			throw new Error("Unable to create a currency transaction for the bot.");
+	}
+
+	/**
+	 * Add currency to a user.
+	 * @param {String} userId ID of the Discord user.
+	 * @param {Number} currency Currency amount to be set.
+	 * @param {String} reason Reason for the transaction.
+	 * @returns {Object} Balance info about the specified user.
+	 */
+	async addCurrency(userId, currency, reason) {
+		await this.checkEndpoint("addCurrency");
+		await this.checkIfUserExists(userId);
+		let oldCurrency = await this.getCurrency(userId).currency;
+		currency = currency > -1 ? currency : -1 * Math.min(Math.abs(currency), Math.abs(oldCurrency));
+		await this.db.raw(`update DiscordUser set CurrencyAmount =  CurrencyAmount ${currency > -1 ? "+" : "-"} ${Math.abs(currency)} where UserId = ${userId}`);
+		let userTransactionCreated = await this.createTransaction(userId, currency, reason);
+		if (!userTransactionCreated)
+			throw new Error("Unable to create a currency transaction for the user.");
+		await this.updateBotCurrency(currency, reason);
+		return await this.getCurrency(userId);
 	}
 
 	/**
@@ -300,7 +339,7 @@ class Connector {
 	 * @param {Number} items Items per page.
 	 * @returns {Object} Transactions.
 	 */
-	async getTransactions(userId, startPosition, items) {
+	async getTransactions(userId, startPosition = 0, items = 10) {
 		await this.checkEndpoint("getTransactions");
 		await this.checkIfUserExists(userId);
 		let transactions = await this.db.raw(`select Id as 'transactionId', Amount as 'amount', Reason as 'reason', DateAdded as 'dateAdded' from CurrencyTransactions where UserId = ${userId} order by Id desc limit ${items} offset ${startPosition}`);
@@ -347,12 +386,12 @@ class Connector {
 		});
 		if (!xpInfo)
 			throw new Error("Unable to find the user/guild.");
-		let levelInfo = await this.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
-		if (!levelInfo)
-			throw new Error("Unable to calculate level.");
 		let rankInfo = await this.getGuildRank(userId, guildId);
 		if (!rankInfo)
 			throw new Error("Unable to get rank.");
+		let levelInfo = await this.calcLevel(xpInfo.Xp + xpInfo.AwardedXp);
+		if (!levelInfo)
+			throw new Error("Unable to calculate level.");
 		return {
 			guildXp: xpInfo.Xp,
 			awardedXp: xpInfo.AwardedXp,
@@ -392,7 +431,7 @@ class Connector {
 	 * @param {Number} items Items per page.
 	 * @returns {Object} Leaderboard page.
 	 */
-	async getGuildXpLeaderboard(guildId, startPosition, items) {
+	async getGuildXpLeaderboard(guildId, startPosition = 0, items = 10) {
 		await this.checkEndpoint("getGuildXpLeaderboard");
 		await this.checkIfGuildExists(guildId);
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', Xp as 'xp', AwardedXp as 'awardedXp' from UserXpStats where GuildId=${guildId} order by (xp + awardedXp) desc limit ${items} offset ${startPosition}`);
@@ -432,7 +471,7 @@ class Connector {
 	 * @param {String} guildId ID of the guild to get XP currency rewards of.
 	 * @returns {Object} Currency rewards.
 	 */
-	async getGuildXpCurrencyRewards(guildId, startPosition, items) {
+	async getGuildXpCurrencyRewards(guildId, startPosition = 0, items = 10) {
 		await this.checkEndpoint("getGuildXpCurrencyRewards");
 		await this.checkIfGuildExists(guildId);
 		let rewards = await this.db.raw(`select a.DateAdded as 'dateAdded', a.Level as 'level', a.Amount as 'amount' from XpCurrencyReward a, XpSettings b, GuildConfigs c where a.XpSettingsId = b.Id AND b.GuildConfigId = c.Id AND c.GuildId = ${guildId} order by a.Level asc limit ${items} offset ${startPosition}`);
@@ -490,9 +529,11 @@ class Connector {
 	 * @param {Number} items Items per page.
 	 * @returns {Object} Leaderboard page.
 	 */
-	async getGlobalXpLeaderboard(startPosition, items) {
+	async getGlobalXpLeaderboard(startPosition = 0, items = 10) {
 		await this.checkEndpoint("getGlobalXpLeaderboard");
 		let leaderboard = await this.db.raw(`select cast(UserId as text) as 'userId', sum(Xp) as 'xp' from UserXpStats group by userId order by sum(Xp) desc limit ${items} offset ${startPosition}`);
+		if (!leaderboard)
+			throw new Error("Unable to fetch global XP leaderboard.");
 		leaderboard = await Promise.all(leaderboard.map(async (user, rank) => {
 			let levelInfo = await this.calcLevel(user.xp);
 			user.level = levelInfo.level;
@@ -501,23 +542,28 @@ class Connector {
 			user.rank = startPosition + rank + 1;
 			return user;
 		}));
-		if (!leaderboard)
-			throw new Error("Unable to fetch global XP leaderboard.");
 		return {
 			leaderboard: leaderboard
 		};
 	}
 
+	async getClubs() {
+		await this.checkEndpoint("getClubs");
+		let clubs = await this.db.raw("select (a.Name || \"#\" || a.Discrim) as name, cast(b.UserId as text) as owner, a.Xp as xp from Clubs a, DiscordUser b WHERE a.OwnerId = b.Id order by a.Xp desc;");
+		if (!clubs)
+			throw new Error("Unable to fetch clubs.");
+		clubs = await Promise.all(clubs.map(async (club, rank) => {
+			let levelInfo = await this.calcLevel(club.xp);
+			club.level = levelInfo.level;
+			club.levelXp = levelInfo.levelXp;
+			club.requiredXp = levelInfo.requiredXp;
+			club.rank = rank + 1;
+			return club;
+		}));
+		return {
+			clubs: clubs
+		};
+	}
 }
 
 module.exports = Connector;
-
-var thing = async function () {
-	var Zynxxer = new Connector(config.bot.db, config.bot.credentials);
-	await Zynxxer.initialize();
-	let data = await Zynxxer.getGuildXpLeaderboard("448743173213126666", 0, 10);
-	console.log(data);
-	console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(Zynxxer)));
-};
-
-thing();
