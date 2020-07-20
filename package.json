@@ -1,6 +1,6 @@
 {
   "name": "nadekoconnector-client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A client for NadekoConnector.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,9 +9,9 @@
   "author": "rjt",
   "license": "MIT",
   "dependencies": {
-    "got": "^9.2.2",
-    "json-bigint": "^0.3.0",
-    "jsonwebtoken": "^8.3.0"
+    "got": "^11.5.1",
+    "json-bigint": "^1.0.0",
+    "jsonwebtoken": "^8.5.1"
   },
   "devDependencies": {},
   "repository": {
