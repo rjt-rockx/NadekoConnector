@@ -11,7 +11,7 @@ class Connector {
 	 * @param {Boolean} readOnly Whether the connector should be read-only.
 	 */
 	constructor(databasePath, credentialsPath, disabledEndpoints, readOnly) {
-		this.db = new Database(databasePath, {readonly: Boolean(readOnly), fileMustExist: true });
+		this.db = new Database(databasePath, { readonly: Boolean(readOnly), fileMustExist: true });
 		this.credentials = new File(credentialsPath, err => { throw err; }).read();
 
 		this._endpoints = [
@@ -90,24 +90,27 @@ class Connector {
 	/**
 	 * Calculate levels gained from a given amount of XP.
 	 * @param {Number} xp XP to calculate level for.
+	 * @param {Number} baseXp Base XP for calculating other levels.
 	 * @returns {Object} Level information.
 	 */
-	calcLevel(xp) {
+	calcLevel(xp, baseXp = 36) {
 		if (typeof xp !== "number" || xp < 0)
 			throw new Error("XP must be a valid numerical value.");
-		let level = 0,
-			required = 0;
+		if (typeof baseXp !== "number" || baseXp < 0)
+			throw new Error("Base XP must be a valid numerical value.");
+
+		let requiredXp = baseXp, totalXp = 0, lvl = 1;
 		while (true) {
-			required = 36 + (9 * level);
-			if (xp >= required) {
-				xp -= required;
-				level++;
-			}
-			if (xp < required)
+			requiredXp = parseInt((baseXp + baseXp / 4.0 * (lvl - 1)), 10);
+			if (requiredXp + totalXp > xp)
 				break;
+			totalXp += requiredXp;
+			lvl++;
 		}
-		return { level, levelXp: xp, requiredXp: required + 9 };
+
+		return { level: lvl - 1, levelXp: xp - totalXp, requiredXp };
 	}
+
 
 	/**
 	 * Check if the connector has been initialized or not.
